@@ -1,0 +1,124 @@
+#!/bin/bash
+# Mailcow Disaster Recovery Script
+# This script automates the complete restore process with proper error handling
+
+set -e  # Exit on any error
+
+ARCHIVE_NAME="${1:-latest}"
+CONFIG_FILE="./data/conf/borgmatic/etc/config-production.yaml"
+
+# Extract MySQL credentials from borgmatic config
+echo "Extracting MySQL credentials from $CONFIG_FILE..."
+MYSQL_USER=$(grep -A 10 "mysql_databases:" "$CONFIG_FILE" | grep "username:" | awk '{print $2}' | head -1)
+MYSQL_PASS=$(grep -A 10 "mysql_databases:" "$CONFIG_FILE" | grep "password:" | awk '{print $2}' | head -1)
+MYSQL_HOST=$(grep -A 10 "mysql_databases:" "$CONFIG_FILE" | grep "hostname:" | awk '{print $2}' | head -1)
+MYSQL_DB=$(grep -A 10 "mysql_databases:" "$CONFIG_FILE" | grep -E "^\s*-\s*name:" | awk '{print $3}' | head -1)
+
+# Validate that we got the credentials
+if [[ -z "$MYSQL_USER" || -z "$MYSQL_PASS" || -z "$MYSQL_HOST" || -z "$MYSQL_DB" ]]; then
+    echo "ERROR: Failed to extract MySQL credentials from $CONFIG_FILE"
+    echo "Expected format in config file:"
+    echo "mysql_databases:"
+    echo "  - name: mailcow"
+    echo "    username: mailcow"
+    echo "    password: your_password"
+    echo "    hostname: mysql-mailcow"
+    exit 1
+fi
+
+echo "✓ MySQL credentials extracted: $MYSQL_USER@$MYSQL_HOST/$MYSQL_DB"
+
+echo "=== Mailcow Disaster Recovery Started ==="
+echo "Archive: $ARCHIVE_NAME"
+echo "Time: $(date)"
+echo
+
+# Step 1: Test repository connection
+echo "Step 1: Testing backup repository connection..."
+if ! borgmatic --config "$CONFIG_FILE" list --archive "$ARCHIVE_NAME" >/dev/null 2>&1; then
+    echo "ERROR: Cannot connect to backup repository or archive not found"
+    exit 1
+fi
+echo "✓ Repository connection successful"
+
+# Step 2: Extract mail data
+echo "Step 2: Extracting mail data..."
+if borgmatic --config "$CONFIG_FILE" extract --path mnt/source --archive "$ARCHIVE_NAME"; then
+    echo "✓ Mail data extracted successfully"
+else
+    echo "ERROR: Failed to extract mail data"
+    exit 1
+fi
+
+# Step 3: Extract database dumps
+echo "Step 3: Extracting database dumps..."
+if borgmatic --config "$CONFIG_FILE" extract --path root/.borgmatic --archive "$ARCHIVE_NAME"; then
+    echo "✓ Database dumps extracted successfully"
+else
+    echo "ERROR: Failed to extract database dumps"
+    exit 1
+fi
+
+# Step 4: Wait for MySQL to be ready
+echo "Step 4: Waiting for MySQL to be ready..."
+echo "Using MySQL credentials: $MYSQL_USER@$MYSQL_HOST/$MYSQL_DB"
+for i in {1..30}; do
+    if mysql -h "$MYSQL_HOST" -u "$MYSQL_USER" -p"$MYSQL_PASS" --skip-ssl -e "SELECT 1;" >/dev/null 2>&1; then
+        echo "✓ MySQL is ready"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        echo "ERROR: MySQL not ready after 30 attempts"
+        exit 1
+    fi
+    echo "Waiting for MySQL... ($i/30)"
+    sleep 2
+done
+
+# Step 5: Restore database manually (reliable method)
+echo "Step 5: Restoring database..."
+if [ -f "/root/.borgmatic/mysql_databases/localhost/$MYSQL_DB" ]; then
+    if mysql -h "$MYSQL_HOST" -u "$MYSQL_USER" -p"$MYSQL_PASS" --skip-ssl "$MYSQL_DB" < "/root/.borgmatic/mysql_databases/localhost/$MYSQL_DB"; then
+        echo "✓ Database restored successfully"
+    else
+        echo "ERROR: Database restore failed"
+        exit 1
+    fi
+else
+    echo "ERROR: Database dump file not found: /root/.borgmatic/mysql_databases/localhost/$MYSQL_DB"
+    exit 1
+fi
+
+# Step 6: Verify restoration
+echo "Step 6: Verifying restoration..."
+MAILBOXES=$(mysql -h "$MYSQL_HOST" -u "$MYSQL_USER" -p"$MYSQL_PASS" --skip-ssl "$MYSQL_DB" -se "SELECT COUNT(*) FROM mailbox;" 2>/dev/null)
+DOMAINS=$(mysql -h "$MYSQL_HOST" -u "$MYSQL_USER" -p"$MYSQL_PASS" --skip-ssl "$MYSQL_DB" -se "SELECT COUNT(*) FROM domain;" 2>/dev/null)
+ALIASES=$(mysql -h "$MYSQL_HOST" -u "$MYSQL_USER" -p"$MYSQL_PASS" --skip-ssl "$MYSQL_DB" -se "SELECT COUNT(*) FROM alias;" 2>/dev/null)
+
+# Step 7: Apply post-restore database fixes
+echo "Step 7: Applying post-restore database fixes..."
+if [ -f "./post_restore_fix.sh" ]; then
+    echo "Running post-restore collation fixes..."
+    if ./post_restore_fix.sh; then
+        echo "✓ Post-restore fixes applied successfully"
+    else
+        echo "⚠ Post-restore fixes encountered issues (check manually)"
+    fi
+else
+    echo "⚠ Post-restore fix script not found, manual collation check recommended"
+fi
+
+echo "✓ Restoration completed successfully!"
+echo
+echo "=== Restore Summary ==="
+echo "Mailboxes restored: $MAILBOXES"
+echo "Domains restored: $DOMAINS"  
+echo "Aliases restored: $ALIASES"
+echo "MySQL Config: $MYSQL_USER@$MYSQL_HOST/$MYSQL_DB"
+echo "Completed at: $(date)"
+echo
+echo "Next steps:"
+echo "1. Start all mailcow services: docker compose up -d"
+echo "2. Test admin interface for DataTables functionality"
+echo "3. Test email functionality"
+echo "4. Verify all services are working correctly"

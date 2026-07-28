@@ -1,0 +1,132 @@
+#!/bin/bash
+# post_restore_fix.sh - Fix database collation issues after mailcow restore
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}===========================================${NC}"
+echo -e "${BLUE}  Mailcow Post-Restore Database Fix${NC}"
+echo -e "${BLUE}===========================================${NC}"
+echo -e "${YELLOW}Starting post-restore database collation fix...${NC}"
+
+# Source mailcow configuration
+if [[ -f mailcow.conf ]]; then
+    source mailcow.conf
+    echo -e "${GREEN}✓ Loaded mailcow configuration${NC}"
+else
+    echo -e "${RED}✗ Error: mailcow.conf not found. Run this script from the mailcow directory.${NC}"
+    exit 1
+fi
+
+# Check if MySQL is running
+if ! docker compose ps mysql-mailcow | grep -q "Up"; then
+    echo -e "${RED}✗ Error: MySQL container is not running${NC}"
+    echo -e "${YELLOW}Please start mailcow services first: docker compose up -d${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ MySQL container is running${NC}"
+
+echo -e "\n${YELLOW}Step 1: Checking for collation inconsistencies...${NC}"
+
+# Check for problematic collations
+PROBLEMATIC_COLLATIONS=$(docker compose exec -T mysql-mailcow mysql -u mailcow -p${DBPASS} --skip-ssl mailcow -e "
+SELECT COUNT(*) as count
+FROM information_schema.columns 
+WHERE table_schema = 'mailcow' 
+  AND collation_name IS NOT NULL 
+  AND collation_name NOT IN ('utf8mb4_general_ci', 'utf8mb4_bin');" 2>/dev/null | tail -1)
+
+if [ "$PROBLEMATIC_COLLATIONS" -gt 0 ]; then
+    echo -e "${YELLOW}⚠ Found $PROBLEMATIC_COLLATIONS problematic collation(s). Details:${NC}"
+    
+    # Show which columns need fixing
+    docker compose exec -T mysql-mailcow mysql -u mailcow -p${DBPASS} --skip-ssl mailcow -e "
+    SELECT CONCAT('  ', table_name, '.', column_name, ' -> ', collation_name) as 'Problematic Columns:'
+    FROM information_schema.columns 
+    WHERE table_schema = 'mailcow' 
+      AND collation_name IS NOT NULL 
+      AND collation_name NOT IN ('utf8mb4_general_ci', 'utf8mb4_bin')
+    ORDER BY table_name;" 2>/dev/null
+    
+    echo -e "\n${YELLOW}Step 2: Applying collation fixes...${NC}"
+    
+    # Fix quota2 table (most common issue)
+    echo -e "  ${YELLOW}Fixing quota2.username collation...${NC}"
+    if docker compose exec -T mysql-mailcow mysql -u mailcow -p${DBPASS} --skip-ssl mailcow -e "
+    ALTER TABLE quota2 MODIFY username VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" 2>/dev/null; then
+        echo -e "  ${GREEN}✓ quota2.username collation fixed${NC}"
+    else
+        echo -e "  ${RED}✗ Failed to fix quota2 table${NC}"
+        exit 1
+    fi
+    
+    # Check for any other problematic tables and suggest manual fixes
+    OTHER_PROBLEMS=$(docker compose exec -T mysql-mailcow mysql -u mailcow -p${DBPASS} --skip-ssl mailcow -e "
+    SELECT COUNT(*) as count
+    FROM information_schema.columns 
+    WHERE table_schema = 'mailcow' 
+      AND collation_name IS NOT NULL 
+      AND collation_name NOT IN ('utf8mb4_general_ci', 'utf8mb4_bin');" 2>/dev/null | tail -1)
+    
+    if [ "$OTHER_PROBLEMS" -gt 0 ]; then
+        echo -e "  ${YELLOW}⚠ Additional collation issues found. Manual review may be needed.${NC}"
+    fi
+    
+    echo -e "\n${GREEN}✓ Primary collation fixes applied successfully${NC}"
+else
+    echo -e "${GREEN}✓ No collation issues found${NC}"
+fi
+
+echo -e "\n${YELLOW}Step 3: Verifying critical column collations...${NC}"
+VERIFICATION=$(docker compose exec -T mysql-mailcow mysql -u mailcow -p${DBPASS} --skip-ssl mailcow -e "
+SELECT COUNT(*) as problematic_critical_columns
+FROM information_schema.columns 
+WHERE table_schema = 'mailcow' 
+  AND (column_name = 'domain' OR column_name = 'username')
+  AND collation_name IS NOT NULL
+  AND collation_name != 'utf8mb4_general_ci';" 2>/dev/null | tail -1)
+
+if [ "$VERIFICATION" -eq 0 ]; then
+    echo -e "${GREEN}✓ All critical columns (domain/username) have consistent collation${NC}"
+else
+    echo -e "${RED}✗ Warning: $VERIFICATION critical columns still have inconsistent collations${NC}"
+fi
+
+echo -e "\n${YELLOW}Step 4: Clearing Redis sessions...${NC}"
+if docker compose exec -T redis-mailcow redis-cli -a ${REDISPASS} --no-auth-warning FLUSHALL > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Redis sessions cleared${NC}"
+else
+    echo -e "${YELLOW}⚠ Could not clear Redis sessions (non-critical)${NC}"
+fi
+
+echo -e "\n${YELLOW}Step 5: Checking for remaining errors...${NC}"
+sleep 2  # Give services a moment to process
+ERROR_COUNT=$(docker compose logs php-fpm-mailcow --tail=20 2>/dev/null | grep -E "(error|PDO.*collation)" | wc -l || echo "0")
+
+if [ "$ERROR_COUNT" -eq 0 ]; then
+    echo -e "${GREEN}✓ No collation errors found in recent logs${NC}"
+else
+    echo -e "${YELLOW}⚠ Found $ERROR_COUNT potential errors in logs (check manually)${NC}"
+fi
+
+echo -e "\n${BLUE}===========================================${NC}"
+echo -e "${GREEN}✓ Post-restore database fix completed!${NC}"
+echo -e "${BLUE}===========================================${NC}"
+
+echo -e "\n${YELLOW}Next steps:${NC}"
+echo -e "1. Log into the mailcow admin interface"
+echo -e "2. Navigate to Configuration > Mail Setup > Domains"
+echo -e "3. Verify DataTables load without 'Invalid JSON response' errors"
+echo -e "4. Test other admin interface sections (Mailboxes, Aliases, etc.)"
+
+echo -e "\n${YELLOW}If you still experience issues:${NC}"
+echo -e "• Check PHP logs: docker compose logs php-fpm-mailcow --tail=50"
+echo -e "• Check MySQL logs: docker compose logs mysql-mailcow --tail=50"
+echo -e "• Restart services: docker compose restart"

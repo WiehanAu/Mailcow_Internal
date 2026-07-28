@@ -220,8 +220,8 @@
       ansible.builtin.debug:
         msg: "Current commit hash: {{ mailcow_commit_hash.stdout }}"
 
-    - name: Run generate_config.sh script
-      ansible.builtin.command: ./generate_config.sh
+    - name: Run generate_config.sh script with --dev to stop it from pullin master branch
+      ansible.builtin.command: ./generate_config.sh --dev
       args:
         chdir: "/local/mailcow-dockerized"
         stdin: |

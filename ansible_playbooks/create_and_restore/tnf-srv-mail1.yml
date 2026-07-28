@@ -436,27 +436,27 @@
         line: '    - path: ssh://{{ borguser }}@{{ borgserver }}//urbackupdata/mailcow'
         backrefs: yes
 
-#     - name: Create Restore Scripts directory
-#       ansible.builtin.file:
-#         path: /local/mailcow-dockerized/restore-scripts
-#         state: directory
-#         mode: '0755'
+    # - name: Create Restore Scripts directory
+    #   ansible.builtin.file:
+    #     path: /local/mailcow-dockerized/restore-scripts
+    #     state: directory
+    #     mode: '0755'
 
-#     - name: Create post_restore_fix.sh from template
-#       ansible.builtin.template:
-#         src: templates/post_restore_fix.sh.j2
-#         dest: /local/mailcow-dockerized/restore-scripts/post_restore_fix.sh
-#         owner: root
-#         group: root
-#         mode: '0755'
+    # - name: Create post_restore_fix.sh from template
+    #   ansible.builtin.template:
+    #     src: templates/post_restore_fix.sh.j2
+    #     dest: /local/mailcow-dockerized/restore-scripts/post_restore_fix.sh
+    #     owner: root
+    #     group: root
+    #     mode: '0755'
 
-#     - name: Create disaster-recovery.sh from template
-#       ansible.builtin.template:
-#         src: templates/disaster-recovery.sh.j2
-#         dest: /local/mailcow-dockerized/restore-scripts/disaster-recovery.sh
-#         owner: root
-#         group: root
-#         mode: '0755'
+    # - name: Create disaster-recovery.sh from template
+    #   ansible.builtin.template:
+    #     src: templates/disaster-recovery.sh.j2
+    #     dest: /local/mailcow-dockerized/restore-scripts/disaster-recovery.sh
+    #     owner: root
+    #     group: root
+    #     mode: '0755'
 
     - name: Start Docker containers for Mailcow
       ansible.builtin.command: sudo docker compose up -d

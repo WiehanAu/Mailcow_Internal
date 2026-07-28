@@ -195,18 +195,28 @@
 #         dest: /local/mailcow-dockerized
 #         update: true
 
-    - name: Clone the Mailcow repository
+    - name: Remove existing Mailcow checkout
+      file:
+        path: /local/mailcow-dockerized
+        state: absent
+
+    - name: Clone Mailcow
       git:
         repo: https://github.com/mailcow/mailcow-dockerized.git
         dest: /local/mailcow-dockerized
-        version: "{{ mailcow_version }}"  # Variable to specify the tag or commit hash
-        force: yes
+        version: "{{ mailcow_version }}"
 
-    - name: Ensure the correct Mailcow version is checked out
-      command: git checkout {{ mailcow_version }}
-      args:
-        chdir: /local/mailcow-dockerized
-      when: not ansible_check_mode
+    # - name: Clone the Mailcow repository
+    #   git:
+    #     repo: https://github.com/mailcow/mailcow-dockerized.git
+    #     dest: /local/mailcow-dockerized
+    #     version: "{{ mailcow_version }}"  # Variable to specify the tag or commit hash
+    #     force: yes
+
+    # - name: Ensure the correct Mailcow version is checked out
+    #   command: git checkout {{ mailcow_version }}
+    #   args:
+    #     chdir: /local/mailcow-dockerized
 
     - name: Run generate_config.sh script
       ansible.builtin.command: ./generate_config.sh

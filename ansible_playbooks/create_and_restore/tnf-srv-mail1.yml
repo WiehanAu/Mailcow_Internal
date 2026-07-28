@@ -280,130 +280,161 @@
         line: 'ACME_CONTACT=wiehana@tnfs.co.za'
         backrefs: yes
 
-#     - name: Create docker-compose.override.yml file
-#       ansible.builtin.copy:
-#         dest: /local/mailcow-dockerized/docker-compose.override.yml
-#         content: |
-#           services:
-#             borgmatic-mailcow:
-#               image: ghcr.io/borgmatic-collective/borgmatic
-#               hostname: mailcow
-#               restart: always
-#               dns: ${IPV4_NETWORK:-172.22.1}.254
-#               volumes:
-#                 - vmail-vol-1:/mnt/source/vmail
-#                 - crypt-vol-1:/mnt/source/crypt:ro
-#                 - redis-vol-1:/mnt/source/redis:ro
-#                 - rspamd-vol-1:/mnt/source/rspamd:ro
-#                 - postfix-vol-1:/mnt/source/postfix:ro
-#                 - mysql-socket-vol-1:/var/run/mysqld/
-#                 - borg-config-vol-1:/root/.config/borg
-#                 - borg-cache-vol-1:/root/.cache/borg
-#                 - ./data/conf/borgmatic/etc:/etc/borgmatic.d:Z
-#                 - ./data/conf/borgmatic/ssh:/root/.ssh:Z
-#               environment:
-#                 - TZ=${TZ}
-#                 - BORG_PASSPHRASE={{ BORG_PASSPHRASE }}
-#               networks:
-#                 mailcow-network:
-#                   aliases:
-#                     - borgmatic
-#           volumes:
-#             borg-cache-vol-1:
-#             borg-config-vol-1:
+    - name: Update ACME_DNS_CHALLENGE value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^ACME_DNS_CHALLENGE='
+        line: 'ACME_DNS_CHALLENGE=y'
+        backrefs: yes
 
-#     - name: Create folder with specific permissions
-#       ansible.builtin.file:
-#         path: /local/mailcow-dockerized/data/conf/borgmatic/ssh
-#         state: directory
-#         owner: root
-#         group: root
-#         mode: '0755'
+    - name: Update ACME_DNS_PROVIDER value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^ACME_DNS_PROVIDER='
+        line: 'ACME_DNS_PROVIDER=dns_cf'
+        backrefs: yes
 
-#     - name: Create id_ed25519.pub file
-#       ansible.builtin.copy:
-#         dest: /local/mailcow-dockerized/data/conf/borgmatic/ssh/id_ed25519.pub
-#         content: |
-#           ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMjb/AED9nl0G12/ePDyJSjyGiEI/uNa34/kUQNudsaU wiehana@tnfs.co.za
-#         owner: root
-#         group: root
-#         mode: '0644'
+    - name: Update ACME_ACCOUNT_EMAIL value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^ACME_ACCOUNT_EMAIL='
+        line: 'ACME_ACCOUNT_EMAIL=wiehana@tnfs.co.za'
+        backrefs: yes
 
-#     - name: Create id_ed25519 file
-#       ansible.builtin.copy:
-#         dest: /local/mailcow-dockerized/data/conf/borgmatic/ssh/id_ed25519
-#         content: |
-#           -----BEGIN OPENSSH PRIVATE KEY-----
-#           b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-#           QyNTUxOQAAACDI2/wBA/Z5dBtdv3jw8iUo8hohCP7jWt+P5FEDbnbGlAAAAJjnSimk50op
-#           pAAAAAtzc2gtZWQyNTUxOQAAACDI2/wBA/Z5dBtdv3jw8iUo8hohCP7jWt+P5FEDbnbGlA
-#           AAAEA3O97P55mC5Esnjni9OuY4bOR6H3r6YakzrPYCtVMR8cjb/AED9nl0G12/ePDyJSjy
-#           GiEI/uNa34/kUQNudsaUAAAAEndpZWhhbmFAdG5mcy5jby56YQECAw==
-#           -----END OPENSSH PRIVATE KEY-----
-#         owner: root
-#         group: root
-#         mode: '0600'
+    - name: Create data/conf/acme/dns-01.conf
+      ansible.builtin.copy:
+        dest: /local/mailcow-dockerized/data/conf/acme/dns-01.conf
+        content: |
+          # CloudFlare API Token (NOT Global API Key!)
+          # Create at: https://dash.cloudflare.com/profile/api-tokens
+          # Permissions: Zone > DNS > Edit for zone 'example.com'
+          CF_Token="{{ cf_apitoken }}"
+          CF_Account_ID="{{ cf_accountid }}"
 
-#     - name: Read mailcow.conf and extract DBNAME
-#       shell: |
-#         grep '^DBNAME=' /local/mailcow-dockerized/mailcow.conf | awk -F'=' '{print $2}'
-#       register: db_name_result
+    - name: Create docker-compose.override.yml file
+      ansible.builtin.copy:
+        dest: /local/mailcow-dockerized/docker-compose.override.yml
+        content: |
+          services:
+            borgmatic-mailcow:
+              image: ghcr.io/borgmatic-collective/borgmatic
+              hostname: mailcow
+              restart: always
+              dns: ${IPV4_NETWORK:-172.22.1}.254
+              volumes:
+                - vmail-vol-1:/mnt/source/vmail
+                - crypt-vol-1:/mnt/source/crypt:ro
+                - redis-vol-1:/mnt/source/redis:ro
+                - rspamd-vol-1:/mnt/source/rspamd:ro
+                - postfix-vol-1:/mnt/source/postfix:ro
+                - mysql-socket-vol-1:/var/run/mysqld/
+                - borg-config-vol-1:/root/.config/borg
+                - borg-cache-vol-1:/root/.cache/borg
+                - ./data/conf/borgmatic/etc:/etc/borgmatic.d:Z
+                - ./data/conf/borgmatic/ssh:/root/.ssh:Z
+              environment:
+                - TZ=${TZ}
+                - BORG_PASSPHRASE={{ BORG_PASSPHRASE }}
+              networks:
+                mailcow-network:
+                  aliases:
+                    - borgmatic
+          volumes:
+            borg-cache-vol-1:
+            borg-config-vol-1:
 
-#     - set_fact:
-#         DBNAME: "{{ db_name_result.stdout | trim }}"
+    - name: Create folder with specific permissions
+      ansible.builtin.file:
+        path: /local/mailcow-dockerized/data/conf/borgmatic/ssh
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
 
-#     - name: Debug DBNAME
-#       debug:
-#         var: DBNAME
+    - name: Create id_ed25519.pub file
+      ansible.builtin.copy:
+        dest: /local/mailcow-dockerized/data/conf/borgmatic/ssh/id_ed25519.pub
+        content: |
+          ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMjb/AED9nl0G12/ePDyJSjyGiEI/uNa34/kUQNudsaU wiehana@tnfs.co.za
+        owner: root
+        group: root
+        mode: '0644'
 
-#     - name: Read mailcow.conf and extract DBUSER
-#       shell: |
-#         grep '^DBUSER=' /local/mailcow-dockerized/mailcow.conf | awk -F'=' '{print $2}'
-#       register: db_user_result
+    - name: Create id_ed25519 file
+      ansible.builtin.copy:
+        dest: /local/mailcow-dockerized/data/conf/borgmatic/ssh/id_ed25519
+        content: |
+          -----BEGIN OPENSSH PRIVATE KEY-----
+          b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+          QyNTUxOQAAACDI2/wBA/Z5dBtdv3jw8iUo8hohCP7jWt+P5FEDbnbGlAAAAJjnSimk50op
+          pAAAAAtzc2gtZWQyNTUxOQAAACDI2/wBA/Z5dBtdv3jw8iUo8hohCP7jWt+P5FEDbnbGlA
+          AAAEA3O97P55mC5Esnjni9OuY4bOR6H3r6YakzrPYCtVMR8cjb/AED9nl0G12/ePDyJSjy
+          GiEI/uNa34/kUQNudsaUAAAAEndpZWhhbmFAdG5mcy5jby56YQECAw==
+          -----END OPENSSH PRIVATE KEY-----
+        owner: root
+        group: root
+        mode: '0600'
 
-#     - set_fact:
-#         DBUSER: "{{ db_user_result.stdout | trim }}"
+    - name: Read mailcow.conf and extract DBNAME
+      shell: |
+        grep '^DBNAME=' /local/mailcow-dockerized/mailcow.conf | awk -F'=' '{print $2}'
+      register: db_name_result
 
-#     - name: Debug DBUSER
-#       debug:
-#         var: DBUSER
+    - set_fact:
+        DBNAME: "{{ db_name_result.stdout | trim }}"
 
-#     - name: Read mailcow.conf and extract DBPASS
-#       shell: |
-#         grep '^DBPASS=' /local/mailcow-dockerized/mailcow.conf | awk -F'=' '{print $2}'
-#       register: db_pass_result
+    - name: Debug DBNAME
+      debug:
+        var: DBNAME
 
-#     - set_fact:
-#         DBPASS: "{{ db_pass_result.stdout | trim }}"
+    - name: Read mailcow.conf and extract DBUSER
+      shell: |
+        grep '^DBUSER=' /local/mailcow-dockerized/mailcow.conf | awk -F'=' '{print $2}'
+      register: db_user_result
 
-#     - name: Debug DBPASS
-#       debug:
-#         var: DBPASS
+    - set_fact:
+        DBUSER: "{{ db_user_result.stdout | trim }}"
 
-#     - name: Ensure DBNAME, DBUSER, and DBPASS are set
-#       debug:
-#         msg: "DBNAME: {{ DBNAME }}, DBUSER: {{ DBUSER }}, DBPASS: {{ DBPASS }}"
+    - name: Debug DBUSER
+      debug:
+        var: DBUSER
 
-#     - name: Create borgmatic config directory
-#       ansible.builtin.file:
-#         path: /local/mailcow-dockerized/data/conf/borgmatic/etc
-#         state: directory
-#         mode: '0755'
+    - name: Read mailcow.conf and extract DBPASS
+      shell: |
+        grep '^DBPASS=' /local/mailcow-dockerized/mailcow.conf | awk -F'=' '{print $2}'
+      register: db_pass_result
 
-#     - name: Create borgmatic config.yaml from template
-#       ansible.builtin.template:
-#         src: templates/config2.yaml.j2
-#         dest: /local/mailcow-dockerized/data/conf/borgmatic/etc/config.yaml
-#         owner: root
-#         group: root
-#         mode: '0644'
+    - set_fact:
+        DBPASS: "{{ db_pass_result.stdout | trim }}"
 
-#     - name: Update configuration file
-#       ansible.builtin.lineinfile:
-#         path: /local/mailcow-dockerized/data/conf/borgmatic/etc/config.yaml
-#         regexp: '^    - path: ssh://user@rsync.net:22/./mailcow'
-#         line: '    - path: ssh://{{ borguser }}@{{ borgserver }}//urbackupdata/mailcow'
-#         backrefs: yes
+    - name: Debug DBPASS
+      debug:
+        var: DBPASS
+
+    - name: Ensure DBNAME, DBUSER, and DBPASS are set
+      debug:
+        msg: "DBNAME: {{ DBNAME }}, DBUSER: {{ DBUSER }}, DBPASS: {{ DBPASS }}"
+
+    - name: Create borgmatic config directory
+      ansible.builtin.file:
+        path: /local/mailcow-dockerized/data/conf/borgmatic/etc
+        state: directory
+        mode: '0755'
+
+    - name: Create borgmatic config.yaml from template
+      ansible.builtin.template:
+        src: templates/config2.yaml.j2
+        dest: /local/mailcow-dockerized/data/conf/borgmatic/etc/config.yaml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Update configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/data/conf/borgmatic/etc/config.yaml
+        regexp: '^    - path: ssh://user@rsync.net:22/./mailcow'
+        line: '    - path: ssh://{{ borguser }}@{{ borgserver }}//urbackupdata/mailcow'
+        backrefs: yes
 
 #     - name: Create Restore Scripts directory
 #       ansible.builtin.file:
@@ -427,180 +458,180 @@
 #         group: root
 #         mode: '0755'
 
-#     - name: Start Docker containers for Mailcow
-#       ansible.builtin.command: sudo docker compose up -d
-#       args:
-#         chdir: /local/mailcow-dockerized
+    - name: Start Docker containers for Mailcow
+      ansible.builtin.command: sudo docker compose up -d
+      args:
+        chdir: /local/mailcow-dockerized
 
-#     - name: Stop Docker containers for Mailcow
-#       ansible.builtin.command: sudo docker compose down
-#       args:
-#         chdir: /local/mailcow-dockerized
+    - name: Stop Docker containers for Mailcow
+      ansible.builtin.command: sudo docker compose down
+      args:
+        chdir: /local/mailcow-dockerized
 
-#     - name: Update dovecot.conf to disable crypt
-#       ansible.builtin.lineinfile:
-#         path: /local/mailcow-dockerized/data/conf/dovecot/dovecot.conf
-#         regexp: '^  mail_crypt_save_version ='
-#         line: '  mail_crypt_save_version = 0'
-#         backrefs: yes
+    - name: Update dovecot.conf to disable crypt
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/data/conf/dovecot/dovecot.conf
+        regexp: '^  mail_crypt_save_version ='
+        line: '  mail_crypt_save_version = 0'
+        backrefs: yes
 
-#     - name: Rename ecprivkey.pem to ecprivkey.pem.bak
-#       command: mv /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecprivkey.pem /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecprivkey.pem.bak
+    - name: Rename ecprivkey.pem to ecprivkey.pem.bak
+      command: mv /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecprivkey.pem /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecprivkey.pem.bak
 
-#     - name: Rename ecpubkey.pem to ecpubkey.pem.bak
-#       command: mv /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecpubkey.pem /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecpubkey.pem.bak
+    - name: Rename ecpubkey.pem to ecpubkey.pem.bak
+      command: mv /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecpubkey.pem /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecpubkey.pem.bak
 
-#     - name: Create ecprivkey.pem file
-#       ansible.builtin.copy:
-#         dest: /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecprivkey.pem
-#         content: |
-#           -----BEGIN PRIVATE KEY-----
-#           MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgZpxxLrN1inXE9Zzu
-#           TZQe2F/GIEXRbDZ9kEFK7ue9KEGhRANCAASpp59HKDw3f47rtnUIDzW+fDgT0z8J
-#           GJyfYVRv6mfiuuwBUK0XleGcXpzJ2+MVkyXHbGc7xDcq1rwssvwX60Mn
-#           -----END PRIVATE KEY-----
-#         owner: '401'
-#         group: root
-#         mode: '0600'
+    - name: Create ecprivkey.pem file
+      ansible.builtin.copy:
+        dest: /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecprivkey.pem
+        content: |
+          -----BEGIN PRIVATE KEY-----
+          MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgZpxxLrN1inXE9Zzu
+          TZQe2F/GIEXRbDZ9kEFK7ue9KEGhRANCAASpp59HKDw3f47rtnUIDzW+fDgT0z8J
+          GJyfYVRv6mfiuuwBUK0XleGcXpzJ2+MVkyXHbGc7xDcq1rwssvwX60Mn
+          -----END PRIVATE KEY-----
+        owner: '401'
+        group: root
+        mode: '0600'
 
-#     - name: Create ecpubkey.pem file
-#       ansible.builtin.copy:
-#         dest: /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecpubkey.pem
-#         content: |
-#           -----BEGIN PUBLIC KEY-----
-#           MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqaefRyg8N3+O67Z1CA81vnw4E9M/
-#           CRicn2FUb+pn4rrsAVCtF5XhnF6cydvjFZMlx2xnO8Q3Kta8LLL8F+tDJw==
-#           -----END PUBLIC KEY-----
-#         owner: '401'
-#         group: root
-#         mode: '0644'
+    - name: Create ecpubkey.pem file
+      ansible.builtin.copy:
+        dest: /var/lib/docker/volumes/mailcowdockerized_crypt-vol-1/_data/ecpubkey.pem
+        content: |
+          -----BEGIN PUBLIC KEY-----
+          MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqaefRyg8N3+O67Z1CA81vnw4E9M/
+          CRicn2FUb+pn4rrsAVCtF5XhnF6cydvjFZMlx2xnO8Q3Kta8LLL8F+tDJw==
+          -----END PUBLIC KEY-----
+        owner: '401'
+        group: root
+        mode: '0644'
 
-#     - name: Block incoming traffic on port 993 using UFW
-#       ansible.builtin.ufw:
-#         rule: deny
-#         port: 993
-#         proto: tcp
-#         direction: in
-#         comment: "Block incoming traffic on port 993"
+    - name: Block incoming traffic on port 993 using UFW
+      ansible.builtin.ufw:
+        rule: deny
+        port: 993
+        proto: tcp
+        direction: in
+        comment: "Block incoming traffic on port 993"
 
-#     - name: Block outgoing traffic on port 993 using UFW
-#       ansible.builtin.ufw:
-#         rule: deny
-#         port: 993
-#         proto: tcp
-#         direction: out
-#         comment: "Block outgoing traffic on port 993"
+    - name: Block outgoing traffic on port 993 using UFW
+      ansible.builtin.ufw:
+        rule: deny
+        port: 993
+        proto: tcp
+        direction: out
+        comment: "Block outgoing traffic on port 993"
 
-#     - name: Block incoming traffic on port 25 using UFW
-#       ansible.builtin.ufw:
-#         rule: deny
-#         port: 25
-#         proto: tcp
-#         direction: in
-#         comment: "Block incoming traffic on port 25"
+    - name: Block incoming traffic on port 25 using UFW
+      ansible.builtin.ufw:
+        rule: deny
+        port: 25
+        proto: tcp
+        direction: in
+        comment: "Block incoming traffic on port 25"
 
-#     - name: Block outgoing traffic on port 25 using UFW
-#       ansible.builtin.ufw:
-#         rule: deny
-#         port: 25
-#         proto: tcp
-#         direction: out
-#         comment: "Block outgoing traffic on port 25"
+    - name: Block outgoing traffic on port 25 using UFW
+      ansible.builtin.ufw:
+        rule: deny
+        port: 25
+        proto: tcp
+        direction: out
+        comment: "Block outgoing traffic on port 25"
 
-#     - name: Block incoming traffic on port 26 using UFW
-#       ansible.builtin.ufw:
-#         rule: deny
-#         port: 26
-#         proto: tcp
-#         direction: in
-#         comment: "Block incoming traffic on port 26"
+    - name: Block incoming traffic on port 26 using UFW
+      ansible.builtin.ufw:
+        rule: deny
+        port: 26
+        proto: tcp
+        direction: in
+        comment: "Block incoming traffic on port 26"
 
-#     - name: Block outgoing traffic on port 26 using UFW
-#       ansible.builtin.ufw:
-#         rule: deny
-#         port: 26
-#         proto: tcp
-#         direction: out
-#         comment: "Block outgoing traffic on port 26"
+    - name: Block outgoing traffic on port 26 using UFW
+      ansible.builtin.ufw:
+        rule: deny
+        port: 26
+        proto: tcp
+        direction: out
+        comment: "Block outgoing traffic on port 26"
 
-#     - name: Block incoming traffic on port 465 using UFW
-#       ansible.builtin.ufw:
-#         rule: deny
-#         port: 465
-#         proto: tcp
-#         direction: in
-#         comment: "Block incoming traffic on port 465"
+    - name: Block incoming traffic on port 465 using UFW
+      ansible.builtin.ufw:
+        rule: deny
+        port: 465
+        proto: tcp
+        direction: in
+        comment: "Block incoming traffic on port 465"
 
-#     - name: Block outgoing traffic on port 465 using UFW
-#       ansible.builtin.ufw:
-#         rule: deny
-#         port: 465
-#         proto: tcp
-#         direction: out
-#         comment: "Block outgoing traffic on port 465"
+    - name: Block outgoing traffic on port 465 using UFW
+      ansible.builtin.ufw:
+        rule: deny
+        port: 465
+        proto: tcp
+        direction: out
+        comment: "Block outgoing traffic on port 465"
 
-#     - name: Block incoming traffic on port 587 using UFW
-#       ansible.builtin.ufw:
-#         rule: deny
-#         port: 587
-#         proto: tcp
-#         direction: in
-#         comment: "Block incoming traffic on port 587"
+    - name: Block incoming traffic on port 587 using UFW
+      ansible.builtin.ufw:
+        rule: deny
+        port: 587
+        proto: tcp
+        direction: in
+        comment: "Block incoming traffic on port 587"
 
-#     - name: Block outgoing traffic on port 587 using UFW
-#       ansible.builtin.ufw:
-#         rule: deny
-#         port: 587
-#         proto: tcp
-#         direction: out
-#         comment: "Block outgoing traffic on port 587"
+    - name: Block outgoing traffic on port 587 using UFW
+      ansible.builtin.ufw:
+        rule: deny
+        port: 587
+        proto: tcp
+        direction: out
+        comment: "Block outgoing traffic on port 587"
 
-#     - name: Block all incoming traffic from 10.131.77.20
-#       ansible.builtin.ufw:
-#         rule: deny
-#         from_ip: 10.131.77.20
-#         direction: in
-#         comment: "Block all incoming traffic from 10.131.77.20"
+    - name: Block all incoming traffic from 10.131.77.20
+      ansible.builtin.ufw:
+        rule: deny
+        from_ip: 10.131.77.20
+        direction: in
+        comment: "Block all incoming traffic from 10.131.77.20"
 
-#     - name: Block all outgoing traffic to 10.131.77.20
-#       ansible.builtin.ufw:
-#         rule: deny
-#         to_ip: 10.131.77.20
-#         direction: out
-#         comment: "Block all outgoing traffic to 10.131.77.20"
+    - name: Block all outgoing traffic to 10.131.77.20
+      ansible.builtin.ufw:
+        rule: deny
+        to_ip: 10.131.77.20
+        direction: out
+        comment: "Block all outgoing traffic to 10.131.77.20"
 
-#     - name: Block all incoming traffic from 10.131.77.21
-#       ansible.builtin.ufw:
-#         rule: deny
-#         from_ip: 10.131.77.21
-#         direction: in
-#         comment: "Block all incoming traffic from 10.131.77.21"
+    - name: Block all incoming traffic from 10.131.77.21
+      ansible.builtin.ufw:
+        rule: deny
+        from_ip: 10.131.77.21
+        direction: in
+        comment: "Block all incoming traffic from 10.131.77.21"
 
-#     - name: Block all outgoing traffic to 10.131.77.21
-#       ansible.builtin.ufw:
-#         rule: deny
-#         to_ip: 10.131.77.21
-#         direction: out
-#         comment: "Block all outgoing traffic to 10.131.77.21"
+    - name: Block all outgoing traffic to 10.131.77.21
+      ansible.builtin.ufw:
+        rule: deny
+        to_ip: 10.131.77.21
+        direction: out
+        comment: "Block all outgoing traffic to 10.131.77.21"
 
-#     - name: Allow SSH through the firewall
-#       ansible.builtin.ufw:
-#         rule: allow
-#         name: OpenSSH
+    - name: Allow SSH through the firewall
+      ansible.builtin.ufw:
+        rule: allow
+        name: OpenSSH
 
-#     - name: Enable UFW
-#       ansible.builtin.ufw:
-#         state: enabled
-#         policy: allow
+    - name: Enable UFW
+      ansible.builtin.ufw:
+        state: enabled
+        policy: allow
 
-#     # - name: Start borgmatic containers for to restore
-#     #   ansible.builtin.command: sudo docker compose up -d borgmatic-mailcow
-#     #   args:
-#     #     chdir: /local/mailcow-dockerized
+    # - name: Start borgmatic containers for to restore
+    #   ansible.builtin.command: sudo docker compose up -d borgmatic-mailcow
+    #   args:
+    #     chdir: /local/mailcow-dockerized
 
-#     # - name: Restore latest backup using borgmatic
-#     #   ansible.builtin.command:
-#     #     cmd: sudo docker compose exec borgmatic-mailcow borgmatic extract --path mnt/source --archive latest
-#     #     timeout: 10800 # 3 hours
-#     #   args:
-#     #     chdir: /local/mailcow-dockerized
+    # - name: Restore latest backup using borgmatic
+    #   ansible.builtin.command:
+    #     cmd: sudo docker compose exec borgmatic-mailcow borgmatic extract --path mnt/source --archive latest
+    #     timeout: 10800 # 3 hours
+    #   args:
+    #     chdir: /local/mailcow-dockerized

@@ -1,191 +1,193 @@
 ---
-- name: Create and configure a Gen 2 Hyper-V VM
-  hosts: tnfhcjhbh7
-  gather_facts: false
-  tasks:
-    - name: Create a new Gen 2 VM
-      ansible.windows.win_shell: |
-        $vmName = "mail1restoretest"
-        $memory = 16GB
-        $vCPU = 4
-        $vSwitch = "SET1"
-        $vhdPath = "E:\VMs\Other\${vmName}.vhdx"
-        $isoPath = "C:\Stuff\ISO\ubuntu-notouch-JAMMY-mcrestore-30092025.iso"
-        New-VM -Name $vmName -Generation 2 -MemoryStartupBytes $memory -SwitchName $vSwitch
-        Set-VM -Name $vmName -ProcessorCount $vCPU
-        Set-VMFirmware -VMName $vmName -EnableSecureBoot On -SecureBootTemplate "MicrosoftUEFICertificateAuthority"
-        New-VHD -Path $vhdPath -SizeBytes 1000GB -Dynamic
-        Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $vhdPath
-        Set-VMNetworkAdapter -VMName $vmName
-        Add-VMDvdDrive -VMName $vmName
-        Set-VMDvdDrive -VMName $vmName -Path $isoPath
-        $vmDVD = Get-VMDvdDrive -VMName $VMName
-        Set-VMFirmware -VMName $VMName -FirstBootDevice $vmDVD
-    - name: Pause for 20 Seconds to wait for VM to be created
-      ansible.builtin.pause:
-        seconds: 20
-    - name: Start VM
-      ansible.windows.win_shell: Start-VM -Name mail1restoretest
-    - name: Pause to wait for VM to be created
-      ansible.builtin.pause:
-        minutes: 15
-
-- name: Wait for VM to become available
-  hosts: localhost
-  vars:
-    vm_ip_address: "10.10.15.122"  # Manually input the IP address here
-  tasks:
-    - name: Wait for SSH to be available
-      ansible.builtin.wait_for:
-        port: 22
-        host: "{{ vm_ip_address }}"
-        state: started
-        delay: 10
-        timeout: 1800
-      # Timeout after 30 minutes (1800 seconds)
-
-    - name: Wait for SSH connection to be ready
-      ansible.builtin.wait_for_connection:
-        delay: 10
-        timeout: 1800
-      # Timeout after 30 minutes (1800 seconds)
-
-# - name: Initial Setup
-#   hosts: mail1restoretest
-#   become: true
+# - name: Create and configure a Gen 2 Hyper-V VM
+#   hosts: tnfhcjhbh7
 #   gather_facts: false
-#   vars:
-#     ansible_ssh_common_args: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-#     ansible_user: mcrestore
-#     ansible_password: mcrestore
-#     ansible_become_password: mcrestore
-#     # password: ""
-#     # newuser: ""
-#     # BORG_PASSPHRASE: ""
-#     # borguser: ""
-#     # borgserver: ""
 #   tasks:
-#     - name: Update package lists
-#       ansible.builtin.apt:
-#         upgrade: true
-#         update_cache: true
-#         autoremove: true
-#         autoclean: true
-#     - name: Create a new user
-#       ansible.builtin.user:
-#         name: "{{ newuser }}"
-#         password: "{{ password | password_hash('sha512') }}"
-#         shell: /bin/bash
-#         home: /home/{{ newuser }}
-#         state: present
-#     - name: Ensure new user's home directory exists
-#       ansible.builtin.file:
-#         path: /home/{{ newuser }}
-#         state: directory
-#         owner: "{{ newuser }}"
-#         group: "{{ newuser }}"
-#         mode: '0755'
-#     - name: Add new user to sudo group
-#       ansible.builtin.user:
-#         name: "{{ newuser }}"
-#         groups: sudo
-#         append: yes
+#     - name: Create a new Gen 2 VM
+#       ansible.windows.win_shell: |
+#         $vmName = "mail1restoretest"
+#         $memory = 16GB
+#         $vCPU = 4
+#         $vSwitch = "SET1"
+#         $vhdPath = "E:\VMs\Other\${vmName}.vhdx"
+#         $isoPath = "C:\Stuff\ISO\ubuntu-notouch-JAMMY-mcrestore-30092025.iso"
+#         New-VM -Name $vmName -Generation 2 -MemoryStartupBytes $memory -SwitchName $vSwitch
+#         Set-VM -Name $vmName -ProcessorCount $vCPU
+#         Set-VMFirmware -VMName $vmName -EnableSecureBoot On -SecureBootTemplate "MicrosoftUEFICertificateAuthority"
+#         New-VHD -Path $vhdPath -SizeBytes 1000GB -Dynamic
+#         Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $vhdPath
+#         Set-VMNetworkAdapter -VMName $vmName
+#         Add-VMDvdDrive -VMName $vmName
+#         Set-VMDvdDrive -VMName $vmName -Path $isoPath
+#         $vmDVD = Get-VMDvdDrive -VMName $vmName
+#         Set-VMFirmware -VMName $vmName -FirstBootDevice $vmDVD
+#     - name: Pause for 20 Seconds to wait for VM to be created
+#       ansible.builtin.pause:
+#         seconds: 20
+#     - name: Set VM notes if description is provided
+#       ansible.windows.win_shell: Set-VM -Name $vmName -Notes "Automated VM created to test mailcow disaster recovery."
+#     - name: Start VM
+#       ansible.windows.win_shell: Start-VM -Name mail1restoretest
+#     - name: Pause to wait for VM to be created
+#       ansible.builtin.pause:
+#         minutes: 15
 
-#     - name: Add pub key to /root/.ssh/authorized_keys
-#       ansible.builtin.copy:
-#         dest: /root/.ssh/authorized_keys
-#         content: |
-#           ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMjb/AED9nl0G12/ePDyJSjyGiEI/uNa34/kUQNudsaU batman@tnfs.co.za
-
-#     - name: Resize partition 3 to 100% with parted
-#       ansible.builtin.shell: parted /dev/sda --script resizepart 3 100%
-
-#     - name: Wait for 5 seconds to ensure the system recognizes the changes
+# - name: Wait for VM to become available
+#   hosts: localhost
+#   vars:
+#     vm_ip_address: "10.10.15.122"  # Manually input the IP address here
+#   tasks:
+#     - name: Wait for SSH to be available
 #       ansible.builtin.wait_for:
-#         timeout: 5
+#         port: 22
+#         host: "{{ vm_ip_address }}"
+#         state: started
+#         delay: 10
+#         timeout: 1800
+#       # Timeout after 30 minutes (1800 seconds)
 
-#     - name: Resize the physical volume
-#       ansible.builtin.shell: pvresize /dev/sda3
-#       register: pvresize_result
+#     - name: Wait for SSH connection to be ready
+#       ansible.builtin.wait_for_connection:
+#         delay: 10
+#         timeout: 1800
+#       # Timeout after 30 minutes (1800 seconds)
 
-#     - name: Debug pvresize result
-#       ansible.builtin.debug:
-#         msg: |
-#           stdout: "{{ pvresize_result.stdout }}"
-#           stderr: "{{ pvresize_result.stderr }}"
+- name: Initial Setup
+  hosts: mail1restoretest
+  become: true
+  gather_facts: false
+  vars:
+    ansible_ssh_common_args: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+    ansible_user: mcrestore
+    ansible_password: mcrestore
+    ansible_become_password: mcrestore
+    # password: ""
+    # newuser: ""
+    # BORG_PASSPHRASE: ""
+    # borguser: ""
+    # borgserver: ""
+  tasks:
+    - name: Update package lists
+      ansible.builtin.apt:
+        upgrade: true
+        update_cache: true
+        autoremove: true
+        autoclean: true
+    - name: Create a new user
+      ansible.builtin.user:
+        name: "{{ newuser }}"
+        password: "{{ password | password_hash('sha512') }}"
+        shell: /bin/bash
+        home: /home/{{ newuser }}
+        state: present
+    - name: Ensure new user's home directory exists
+      ansible.builtin.file:
+        path: /home/{{ newuser }}
+        state: directory
+        owner: "{{ newuser }}"
+        group: "{{ newuser }}"
+        mode: '0755'
+    - name: Add new user to sudo group
+      ansible.builtin.user:
+        name: "{{ newuser }}"
+        groups: sudo
+        append: yes
 
-#     - name: Check for free space in the volume group
-#       ansible.builtin.shell: vgs --units b --nosuffix ubuntu-vg
-#       register: vg_check
+    - name: Add pub key to /root/.ssh/authorized_keys
+      ansible.builtin.copy:
+        dest: /root/.ssh/authorized_keys
+        content: |
+          ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMjb/AED9nl0G12/ePDyJSjyGiEI/uNa34/kUQNudsaU batman@tnfs.co.za
 
-#     - name: Debug free space in volume group
-#       ansible.builtin.debug:
-#         msg: "Free space in volume group: {{ vg_check.stdout }}"
+    - name: Resize partition 3 to 100% with parted
+      ansible.builtin.shell: parted /dev/sda --script resizepart 3 100%
 
-#     - name: Extend the logical volume
-#       ansible.builtin.shell: lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv
-#       ignore_errors: yes
-#       register: lvextend_result
-#       failed_when: false
+    - name: Wait for 5 seconds to ensure the system recognizes the changes
+      ansible.builtin.wait_for:
+        timeout: 5
 
-#     - name: Display error message if lvextend fails
-#       ansible.builtin.debug:
-#         msg: "lvextend failed with error: {{ lvextend_result.stderr }}"
-#       when: lvextend_result.rc != 0
+    - name: Resize the physical volume
+      ansible.builtin.shell: pvresize /dev/sda3
+      register: pvresize_result
 
-#     - name: Resize the ext4/ext3 filesystem
-#       ansible.builtin.shell: resize2fs /dev/ubuntu-vg/ubuntu-lv
+    - name: Debug pvresize result
+      ansible.builtin.debug:
+        msg: |
+          stdout: "{{ pvresize_result.stdout }}"
+          stderr: "{{ pvresize_result.stderr }}"
 
-#     - name: Install required packages
-#       ansible.builtin.apt:
-#         name:
-#           - ca-certificates
-#           - curl
-#           - gnupg
-#           - lsb-release
-#         state: present
-#         update_cache: yes
+    - name: Check for free space in the volume group
+      ansible.builtin.shell: vgs --units b --nosuffix ubuntu-vg
+      register: vg_check
 
-#     - name: Create directory for apt keyrings
-#       ansible.builtin.file:
-#         path: /etc/apt/keyrings
-#         state: directory
-#         mode: '0755'
+    - name: Debug free space in volume group
+      ansible.builtin.debug:
+        msg: "Free space in volume group: {{ vg_check.stdout }}"
 
-#     - name: Download and add Docker GPG key
-#       ansible.builtin.shell: |
-#         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-#       args:
-#         creates: /etc/apt/keyrings/docker.gpg
+    - name: Extend the logical volume
+      ansible.builtin.shell: lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv
+      ignore_errors: yes
+      register: lvextend_result
+      failed_when: false
 
-#     - name: Add Docker repository
-#       ansible.builtin.shell: |
-#         echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-#       args:
-#         creates: /etc/apt/sources.list.d/docker.list
+    - name: Display error message if lvextend fails
+      ansible.builtin.debug:
+        msg: "lvextend failed with error: {{ lvextend_result.stderr }}"
+      when: lvextend_result.rc != 0
 
-#     - name: Update apt package index
-#       ansible.builtin.apt:
-#         update_cache: yes
+    - name: Resize the ext4/ext3 filesystem
+      ansible.builtin.shell: resize2fs /dev/ubuntu-vg/ubuntu-lv
 
-#     - name: Install Docker packages
-#       ansible.builtin.apt:
-#         name:
-#           - docker-ce
-#           - docker-ce-cli
-#           - containerd.io
-#           - docker-buildx-plugin
-#           - docker-compose
-#           - docker-compose-plugin
-#           - expect
-#           - jq
-#         state: present
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
 
-#     - name: Create /local directory
-#       ansible.builtin.file:
-#         path: /local
-#         state: directory
-#         mode: '0755'
+    - name: Create directory for apt keyrings
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download and add Docker GPG key
+      ansible.builtin.shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Add Docker repository
+      ansible.builtin.shell: |
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+      args:
+        creates: /etc/apt/sources.list.d/docker.list
+
+    - name: Update apt package index
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install Docker packages
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose
+          - docker-compose-plugin
+          - expect
+          - jq
+        state: present
+
+    - name: Create /local directory
+      ansible.builtin.file:
+        path: /local
+        state: directory
+        mode: '0755'
 
 #     - name: Clone mailcow-dockerized repository
 #       ansible.builtin.git:

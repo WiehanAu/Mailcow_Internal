@@ -200,11 +200,24 @@
         path: /local/mailcow-dockerized
         state: absent
 
+    - name: Debug mailcow_version
+      ansible.builtin.debug:
+        msg: "mailcow_version={{ mailcow_version }}"
+
     - name: Clone Mailcow
       git:
         repo: https://github.com/mailcow/mailcow-dockerized.git
         dest: /local/mailcow-dockerized
         version: "{{ mailcow_version }}"
+
+    - name: Get the current commit hash of the Mailcow repository
+      ansible.builtin.shell: git rev-parse HEAD
+      args:
+        chdir: /local/mailcow-dockerized
+
+    - name: Debug current commit hash
+      ansible.builtin.debug:
+        msg: "Current commit hash of Mailcow repository: {{ lookup('pipe', 'git -C /local/mailcow-dockerized rev-parse HEAD') }}"
 
     # - name: Clone the Mailcow repository
     #   git:

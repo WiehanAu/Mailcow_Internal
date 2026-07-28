@@ -1,0 +1,77 @@
+# Complete Borgmatic Configuration for Automated Database Restore
+# This addresses the SSL issues and ensures proper database restore functionality
+
+source_directories:
+    - /mnt/source/vmail
+    - /mnt/source/crypt
+    - /mnt/source/redis
+    - /mnt/source/rspamd
+    - /mnt/source/postfix
+
+repositories:
+    - path: ssh://{{ borguser }}@{{ borgserver }}:22{{ borgfolder }}
+      label: rsync
+borg_exit_codes:
+    - code: 1
+      treat_as: warning
+lock_wait: 600
+ssh_command: ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=30
+
+exclude_patterns:
+    - '/mnt/source/postfix/public/'
+    - '/mnt/source/postfix/private/'
+    - '/mnt/source/rspamd/rspamd.sock'
+
+# Retention settings
+keep_hourly: 2
+keep_daily: 7
+keep_weekly: 2
+keep_monthly: 1
+
+# MySQL database configuration with SSL disabled and connection optimizations
+mysql_databases:
+    - name: {{ DBNAME }}
+      username: {{ DBUSER }}
+      password: {{ DBPASS }}
+      hostname: mysql-mailcow
+      port: 3306
+      # Critical options for restore compatibility:
+      options: --default-character-set=utf8mb4 --skip-ssl --protocol=TCP --connect-timeout=30
+
+# Configuration for a monitoring integration with Healthchecks. Create
+# an account at https://healthchecks.io (or self-host Healthchecks) if
+# you'd like to use this service. See borgmatic monitoring
+# documentation for details.
+healthchecks:
+    # Healthchecks ping URL or UUID to notify when a backup
+    # begins, ends, errors, or to send only logs.
+    # ping_url: 
+
+    # Verify the TLS certificate of the ping URL host. Defaults to
+    # true.
+    # verify_tls: false
+
+    # Send borgmatic logs to Healthchecks as part the "finish",
+    # "fail", and "log" states. Defaults to true.
+    # send_logs: true
+
+    # Number of bytes of borgmatic logs to send to Healthchecks,
+    # ideally the same as PING_BODY_LIMIT configured on the
+    # Healthchecks server. Set to 0 to send all logs and disable
+    # this truncation. Defaults to 100000.
+    # ping_body_limit: 200000
+
+    # List of one or more monitoring states to ping for: "start",
+    # "finish", "fail", and/or "log". Defaults to pinging for all
+    # states.
+    # states:
+    #     - start
+    #     - finish
+    #     - fail
+    #     - log
+
+    # Create the check if it does not exist. Only works with
+    # the slug URL scheme (https://hc-ping.com/<ping-key>/<slug>
+    # as opposed to https://hc-ping.com/<uuid>).
+    # Defaults to false.
+    # create_slug: true

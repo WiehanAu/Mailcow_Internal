@@ -98,6 +98,7 @@
         dest: /root/.ssh/authorized_keys
         content: |
           ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMjb/AED9nl0G12/ePDyJSjyGiEI/uNa34/kUQNudsaU batman@tnfs.co.za
+          ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHjSme9O6wTVsroGBthFSHOrF4w7Hk62Gc3tx1HkAfQ9 wiehan.aucamp@gmail.com
 
     - name: Resize partition 3 to 100% with parted
       ansible.builtin.shell: parted /dev/sda --script resizepart 3 100%
@@ -188,17 +189,6 @@
         path: /local
         state: directory
         mode: '0755'
-
-#     - name: Clone mailcow-dockerized repository
-#       ansible.builtin.git:
-#         repo: https://github.com/mailcow/mailcow-dockerized
-#         dest: /local/mailcow-dockerized
-#         update: true
-
-    - name: Remove existing Mailcow checkout
-      file:
-        path: /local/mailcow-dockerized
-        state: absent
 
     - name: Debug mailcow_version
       ansible.builtin.debug:

@@ -195,88 +195,88 @@
 #         dest: /local/mailcow-dockerized
 #         update: true
 
-#     # - name: Clone the Mailcow repository
-#     #   git:
-#     #     repo: https://github.com/mailcow/mailcow-dockerized.git
-#     #     dest: /local/mailcow-dockerized
-#     #     version: "{{ mailcow_version }}"  # Variable to specify the tag or commit hash
-#     #     force: yes
+    - name: Clone the Mailcow repository
+      git:
+        repo: https://github.com/mailcow/mailcow-dockerized.git
+        dest: /local/mailcow-dockerized
+        version: "{{ mailcow_version }}"  # Variable to specify the tag or commit hash
+        force: yes
 
-#     # - name: Ensure the correct Mailcow version is checked out
-#     #   command: git checkout {{ mailcow_version }}
-#     #   args:
-#     #     chdir: /local/mailcow-dockerized
-#     #   when: not ansible_check_mode
+    - name: Ensure the correct Mailcow version is checked out
+      command: git checkout {{ mailcow_version }}
+      args:
+        chdir: /local/mailcow-dockerized
+      when: not ansible_check_mode
 
-#     - name: Run generate_config.sh script
-#       ansible.builtin.command: ./generate_config.sh
-#       args:
-#         chdir: "/local/mailcow-dockerized"
-#         stdin: |
-#           mx.cashconverters.co.za
-#           Africa/Johannesburg
-#           1
+    - name: Run generate_config.sh script
+      ansible.builtin.command: ./generate_config.sh
+      args:
+        chdir: "/local/mailcow-dockerized"
+        stdin: |
+          mx.cashconverters.co.za
+          Africa/Johannesburg
+          1
 
-#     - name: Pull Docker images for Mailcow
-#       ansible.builtin.command: sudo docker compose pull
-#       args:
-#         chdir: /local/mailcow-dockerized
+    - name: Pull Docker images for Mailcow
+      ansible.builtin.command: sudo docker compose pull
+      args:
+        chdir: /local/mailcow-dockerized
 
-#     - name: Update SMTP_PORT value in the configuration file
-#       ansible.builtin.lineinfile:
-#         path: /local/mailcow-dockerized/mailcow.conf
-#         regexp: '^SMTP_PORT='
-#         line: 'SMTP_PORT=26'
-#         backrefs: yes
+    - name: Update SMTP_PORT value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^SMTP_PORT='
+        line: 'SMTP_PORT=26'
+        backrefs: yes
 
-#     - name: Update SMTP_PORT value in the configuration file
-#       ansible.builtin.lineinfile:
-#         path: /local/mailcow-dockerized/mailcow.conf
-#         regexp: '^ADDITIONAL_SAN='
-#         line: 'ADDITIONAL_SAN=mx.*'
-#         backrefs: yes
+    - name: Update SMTP_PORT value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^ADDITIONAL_SAN='
+        line: 'ADDITIONAL_SAN=mx.*'
+        backrefs: yes
 
-#     - name: Update SMTP_PORT value in the configuration file
-#       ansible.builtin.lineinfile:
-#         path: /local/mailcow-dockerized/mailcow.conf
-#         regexp: '^ADDITIONAL_SERVER_NAMES='
-#         line: 'ADDITIONAL_SERVER_NAMES=mx.cashiescard.co.za,mx.truenorth.co.za'
-#         backrefs: yes
+    - name: Update SMTP_PORT value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^ADDITIONAL_SERVER_NAMES='
+        line: 'ADDITIONAL_SERVER_NAMES=mx.cashiescard.co.za,mx.truenorth.co.za'
+        backrefs: yes
 
-#     - name: Update SMTP_PORT value in the configuration file
-#       ansible.builtin.lineinfile:
-#         path: /local/mailcow-dockerized/mailcow.conf
-#         regexp: '^SKIP_IP_CHECK='
-#         line: 'SKIP_IP_CHECK=y'
-#         backrefs: yes
+    - name: Update SMTP_PORT value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^SKIP_IP_CHECK='
+        line: 'SKIP_IP_CHECK=y'
+        backrefs: yes
 
-#     - name: Update SMTP_PORT value in the configuration file
-#       ansible.builtin.lineinfile:
-#         path: /local/mailcow-dockerized/mailcow.conf
-#         regexp: '^SKIP_CLAMD='
-#         line: 'SKIP_CLAMD=y'
-#         backrefs: yes
+    - name: Update SMTP_PORT value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^SKIP_CLAMD='
+        line: 'SKIP_CLAMD=y'
+        backrefs: yes
 
-#     - name: Update SMTP_PORT value in the configuration file
-#       ansible.builtin.lineinfile:
-#         path: /local/mailcow-dockerized/mailcow.conf
-#         regexp: '^ALLOW_ADMIN_EMAIL_LOGIN='
-#         line: 'ALLOW_ADMIN_EMAIL_LOGIN=y'
-#         backrefs: yes
+    - name: Update SMTP_PORT value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^ALLOW_ADMIN_EMAIL_LOGIN='
+        line: 'ALLOW_ADMIN_EMAIL_LOGIN=y'
+        backrefs: yes
 
-#     - name: Update SMTP_PORT value in the configuration file
-#       ansible.builtin.lineinfile:
-#         path: /local/mailcow-dockerized/mailcow.conf
-#         regexp: '^WATCHDOG_NOTIFY_EMAIL='
-#         line: 'WATCHDOG_NOTIFY_EMAIL=wiehana@tnfs.co.za'
-#         backrefs: yes
+    - name: Update SMTP_PORT value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^WATCHDOG_NOTIFY_EMAIL='
+        line: 'WATCHDOG_NOTIFY_EMAIL=wiehana@tnfs.co.za'
+        backrefs: yes
 
-#     - name: Update SMTP_PORT value in the configuration file
-#       ansible.builtin.lineinfile:
-#         path: /local/mailcow-dockerized/mailcow.conf
-#         regexp: '^ACME_CONTACT='
-#         line: 'ACME_CONTACT=wiehana@tnfs.co.za'
-#         backrefs: yes
+    - name: Update SMTP_PORT value in the configuration file
+      ansible.builtin.lineinfile:
+        path: /local/mailcow-dockerized/mailcow.conf
+        regexp: '^ACME_CONTACT='
+        line: 'ACME_CONTACT=wiehana@tnfs.co.za'
+        backrefs: yes
 
 #     - name: Create docker-compose.override.yml file
 #       ansible.builtin.copy:

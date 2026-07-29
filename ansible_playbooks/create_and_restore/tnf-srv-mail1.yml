@@ -1,56 +1,56 @@
 ---
-- name: Create and configure a Gen 2 Hyper-V VM
-  hosts: tnfhcjhbh7
-  gather_facts: false
-  tasks:
-    - name: Create a new Gen 2 VM
-      ansible.windows.win_shell: |
-        $vmName = "mail1restoretest"
-        $memory = 16GB
-        $vCPU = 4
-        $vSwitch = "SET1"
-        $vhdPath = "E:\VMs\Other\${vmName}.vhdx"
-        $isoPath = "C:\Stuff\ISO\ubuntu-notouch-JAMMY-mcrestore-30092025.iso"
-        New-VM -Name $vmName -Generation 2 -MemoryStartupBytes $memory -SwitchName $vSwitch
-        Set-VM -Name $vmName -ProcessorCount $vCPU
-        Set-VMFirmware -VMName $vmName -EnableSecureBoot On -SecureBootTemplate "MicrosoftUEFICertificateAuthority"
-        New-VHD -Path $vhdPath -SizeBytes 1000GB -Dynamic
-        Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $vhdPath
-        Set-VMNetworkAdapter -VMName $vmName
-        Add-VMDvdDrive -VMName $vmName
-        Set-VMDvdDrive -VMName $vmName -Path $isoPath
-        $vmDVD = Get-VMDvdDrive -VMName $vmName
-        Set-VMFirmware -VMName $vmName -FirstBootDevice $vmDVD
-    - name: Pause for 20 Seconds to wait for VM to be created
-      ansible.builtin.pause:
-        seconds: 20
-    - name: Set VM notes if description is provided
-      ansible.windows.win_shell: Set-VM -Name $vmName -Notes "Automated VM created to test mailcow disaster recovery."
-    - name: Start VM
-      ansible.windows.win_shell: Start-VM -Name mail1restoretest
-    - name: Pause to wait for VM to be created
-      ansible.builtin.pause:
-        minutes: 15
+# - name: Create and configure a Gen 2 Hyper-V VM
+#   hosts: tnfhcjhbh7
+#   gather_facts: false
+#   tasks:
+#     - name: Create a new Gen 2 VM
+#       ansible.windows.win_shell: |
+#         $vmName = "mail1restoretest"
+#         $memory = 16GB
+#         $vCPU = 4
+#         $vSwitch = "SET1"
+#         $vhdPath = "E:\VMs\Other\${vmName}.vhdx"
+#         $isoPath = "C:\Stuff\ISO\ubuntu-notouch-JAMMY-mcrestore-30092025.iso"
+#         New-VM -Name $vmName -Generation 2 -MemoryStartupBytes $memory -SwitchName $vSwitch
+#         Set-VM -Name $vmName -ProcessorCount $vCPU
+#         Set-VMFirmware -VMName $vmName -EnableSecureBoot On -SecureBootTemplate "MicrosoftUEFICertificateAuthority"
+#         New-VHD -Path $vhdPath -SizeBytes 1000GB -Dynamic
+#         Add-VMHardDiskDrive -VMName $vmName -ControllerType SCSI -Path $vhdPath
+#         Set-VMNetworkAdapter -VMName $vmName
+#         Add-VMDvdDrive -VMName $vmName
+#         Set-VMDvdDrive -VMName $vmName -Path $isoPath
+#         $vmDVD = Get-VMDvdDrive -VMName $vmName
+#         Set-VMFirmware -VMName $vmName -FirstBootDevice $vmDVD
+#     - name: Pause for 20 Seconds to wait for VM to be created
+#       ansible.builtin.pause:
+#         seconds: 20
+#     - name: Set VM notes if description is provided
+#       ansible.windows.win_shell: Set-VM -Name $vmName -Notes "Automated VM created to test mailcow disaster recovery."
+#     - name: Start VM
+#       ansible.windows.win_shell: Start-VM -Name $vmName
+#     - name: Pause to wait for VM to be created
+#       ansible.builtin.pause:
+#         minutes: 15
 
-- name: Wait for VM to become available
-  hosts: localhost
-  vars:
-    vm_ip_address: "10.10.15.122"  # Manually input the IP address here
-  tasks:
-    - name: Wait for SSH to be available
-      ansible.builtin.wait_for:
-        port: 22
-        host: "{{ vm_ip_address }}"
-        state: started
-        delay: 10
-        timeout: 1800
-      # Timeout after 30 minutes (1800 seconds)
+# - name: Wait for VM to become available
+#   hosts: localhost
+#   vars:
+#     vm_ip_address: "10.10.15.122"  # Manually input the IP address here
+#   tasks:
+#     - name: Wait for SSH to be available
+#       ansible.builtin.wait_for:
+#         port: 22
+#         host: "{{ vm_ip_address }}"
+#         state: started
+#         delay: 10
+#         timeout: 1800
+#       # Timeout after 30 minutes (1800 seconds)
 
-    - name: Wait for SSH connection to be ready
-      ansible.builtin.wait_for_connection:
-        delay: 10
-        timeout: 1800
-      # Timeout after 30 minutes (1800 seconds)
+#     - name: Wait for SSH connection to be ready
+#       ansible.builtin.wait_for_connection:
+#         delay: 10
+#         timeout: 1800
+#       # Timeout after 30 minutes (1800 seconds)
 
 - name: Initial Setup
   hosts: mail1restoretest
@@ -636,3 +636,27 @@
     #     timeout: 10800 # 3 hours
     #   args:
     #     chdir: /local/mailcow-dockerized
+
+    - name: Post playbook output
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Configuration Applied
+          ========================================
+          Hostname: UbuntuServer
+          OS: Ubuntu 22.04 LTS
+          Mailcow Version: {{ mailcow_version }}
+          IP Address: 10.10.15.122
+
+          Manual Steps Required:
+          1. Start borgmatic containers for restoration:
+              cd /local/mailcow-dockerized && sudo docker compose up -d borgmatic-mailcow
+          2. List available backups using borgmatic:
+              cd /local/mailcow-dockerized && sudo docker compose exec borgmatic-mailcow borgmatic list
+          3. Restore the latest dated (ie: mailcow-2026-07-29T14:18:28.715255) maildir backup using borgmatic:
+              cd /local/mailcow-dockerized && sudo docker compose exec borgmatic-mailcow borgmatic extract --path mnt/source --archive mailcow-2026-07-29T14:18:28.715255
+          4. Start MySQL-Mailcow container:
+              cd /local/mailcow-dockerized && sudo docker compose up -d mysql-mailcow
+          5. Restore database using borgmatic:
+              cd /local/mailcow-dockerized && sudo docker compose exec borgmatic-mailcow borgmatic extract --path mnt/source --archive mailcow-2026-07-29T14:18:28.715255 --pattern "var/lib/mysql/*"
+          ========================================

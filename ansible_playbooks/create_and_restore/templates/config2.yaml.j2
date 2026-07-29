@@ -29,7 +29,7 @@ keep_weekly: 2
 keep_monthly: 1
 
 # MySQL database configuration with SSL disabled and connection optimizations
-mysql_databases:
+mariadb_databases:
     - name: {{ DBNAME }}
       username: {{ DBUSER }}
       password: {{ DBPASS }}
@@ -37,12 +37,14 @@ mysql_databases:
       port: 3306
       # Critical options for restore compatibility:
       options: --default-character-set=utf8mb4 --skip-ssl --protocol=TCP --connect-timeout=30
+      list_options: "--skip-ssl"
+      restore_options: "--skip-ssl"
 
 # Configuration for a monitoring integration with Healthchecks. Create
 # an account at https://healthchecks.io (or self-host Healthchecks) if
 # you'd like to use this service. See borgmatic monitoring
 # documentation for details.
-healthchecks:
+# healthchecks:
     # Healthchecks ping URL or UUID to notify when a backup
     # begins, ends, errors, or to send only logs.
     # ping_url: 

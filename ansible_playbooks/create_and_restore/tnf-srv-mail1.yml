@@ -147,6 +147,12 @@
           - curl
           - gnupg
           - lsb-release
+          - git
+          - openssl
+          - gawk
+          - coreutils
+          - grep
+          - jq
         state: present
         update_cache: yes
 
@@ -182,7 +188,6 @@
           - docker-compose
           - docker-compose-plugin
           - expect
-          - jq
         state: present
 
     - name: Create /local directory
@@ -197,7 +202,7 @@
 
     - name: Clone Mailcow
       git:
-        repo: https://github.com/mailcow/mailcow-dockerized.git
+        repo: https://github.com/mailcow/mailcow-dockerized
         dest: /local/mailcow-dockerized
         version: "{{ mailcow_version }}"
 
@@ -657,6 +662,10 @@
               cd /local/mailcow-dockerized && sudo docker compose exec borgmatic-mailcow borgmatic extract --path mnt/source --archive mailcow-2026-07-29T14:18:28.715255
           4. Start MySQL-Mailcow container:
               cd /local/mailcow-dockerized && sudo docker compose up -d mysql-mailcow
+          5. Test MySQL connection to the database using the following command: (You should see 'ok' and a list of tables from Mailcow database)
+              cd /local/mailcow-dockerized && DBPASS=$(grep -E '^DBPASS=' mailcow.conf | cut -d= -f2-) && sudo docker compose exec -T mysql-mailcow mariadb -u"mailcow" -p"$DBPASS" -e "SHOW TABLES from mailcow;"
           5. Restore database using borgmatic:
-              cd /local/mailcow-dockerized && sudo docker compose exec borgmatic-mailcow borgmatic extract --path mnt/source --archive mailcow-2026-07-29T14:18:28.715255 --pattern "var/lib/mysql/*"
+              cd /local/mailcow-dockerized && sudo docker compose exec borgmatic-mailcow borgmatic restore --archive mailcow-2026-07-29T14:18:28.715255
+          6. Start all Mailcow containers:
+              cd /local/mailcow-dockerized && sudo docker compose up -d
           ========================================

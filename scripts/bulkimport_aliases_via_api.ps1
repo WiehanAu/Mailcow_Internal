@@ -134,6 +134,11 @@ foreach ($alias in $aliases) {
         }
         $failCount++
     }
+
+    # Pause between API calls to avoid DB corruption from rapid requests
+    if ($aliases.IndexOf($alias) -lt ($aliases.Count - 1)) {
+        Start-Sleep -Seconds 1
+    }
 }
 
 # Summary
